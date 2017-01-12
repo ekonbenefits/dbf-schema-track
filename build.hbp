@@ -1,0 +1,3 @@
+#file to compile
+-obin/print-struct.exe
+main.prg

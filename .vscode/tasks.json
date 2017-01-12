@@ -1,0 +1,40 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "0.1.0",
+    "command": "F:\\hb30\\bin\\hbmk2",
+    "isShellCommand": true,
+    "echoCommand" : true,
+    "args": ["build.hbp"],
+    "showOutput": "always",
+    "problemMatcher": [ 
+        {
+            "fileLocation": "absolute",
+            "pattern": {
+                "regexp": "^(\\w:\\\\.*)\\((\\d+)\\) (Error|Warning) (.*)$",
+                "file": 1,
+                "line" : 2,
+                "severity": 3,
+                "message": 4
+            }
+        },
+        {
+            "fileLocation": [ "relative", "${workspaceRoot}" ],
+            "pattern": {
+                "regexp": "^(.*)\\((\\d+)\\) (Error|Warning) (.*)$",
+                "file": 1,
+                "line" : 2,
+                "severity": 3,
+                "message": 4
+            }
+        },{
+            "fileLocation": ["relative", "${workspaceRoot}"],
+            "pattern": {
+                "regexp": "^.*\\.o:(.*).c:\\(.*\\): (.*)$",
+                "file": 1,
+                "message": 2
+            }
+
+        }
+    ]
+}
