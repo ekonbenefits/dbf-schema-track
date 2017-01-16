@@ -11,7 +11,8 @@ PROCEDURE MAIN(...)
     LOCAL args := HB_AParams()
     LOCAL dirs := {}
     LOCAL prefixes := {}
-    LOCAL tmp, dir, prefix, file, ifile, fld, entry
+    LOCAL indexes := {".NT*",".ND*", ".CD*",".MD*"}
+    LOCAL tmp, dir, prefix, file, ifile, fld, entry, suffix
 
     FOR EACH tmp IN args
         DO CASE
@@ -26,8 +27,6 @@ PROCEDURE MAIN(...)
       AAdd(dirs, "")
     end if
 
-
-
     for each dir in dirs
         for each prefix in prefixes
             look := dir + prefix + "*.DBF"
@@ -35,16 +34,16 @@ PROCEDURE MAIN(...)
             CreateStructDirIfMissing()
             files := DIRECTORY(look)
             for each file in files
+           
                 fn := file [1]
                 db := dir + fn
                 missingExt := LEFT(fn, len(fn) -4)
-                look2 := dir + missingExt + ".NT*"
-                ifiles := DIRECTORY(look2)
+        
                 ? "DB:", db
                 USE (db) READONLY
 
                 afields := DBSTRUCT()
-                hnd := FCREATE("struct\"+ fn + ".txt")
+                hnd := FCREATE("schema"+ HB_PS() + fn + ".txt")
                 for each fld in afields
                     FWRITE(hnd, fld[1])
                     FWRITE(hnd, CHR(9))
@@ -54,19 +53,23 @@ PROCEDURE MAIN(...)
                     FWRITE(hnd, CHR(9))
                     FWRITE(hnd,STR(fld[4]))
                     FWRITE(hnd, CHR(9))
-                    FWRITE(hnd,CHR(13))
+                    FWRITE(hnd, HB_EOL())
                 next
                 FCLOSE(hnd)
-                for each ifile in ifiles
-                    ifn :=  ifile[1]
-                    idx := dir + ifn
-                    ? "Index:", idx
-                    USE (db) READONLY INDEX (idx)
-                    ikey := INDEXKEY()
-                    hnd := FCREATE("struct\"+ ifn + ".txt")
-                    FWRITE(hnd, ikey)
-                    FWRITE(hnd,CHR(13))
-                    FCLOSE(hnd)
+                for each suffix in indexes
+                    look2 := dir + missingExt + suffix
+                    ifiles := DIRECTORY(look2)
+                    for each ifile in ifiles
+                        ifn :=  ifile[1]
+                        idx := dir + ifn
+                        ? "Index:", idx
+                        USE (db) READONLY INDEX (idx)
+                        ikey := INDEXKEY()
+                        hnd := FCREATE("schema" + HB_PS() + ifn + ".txt")
+                        FWRITE(hnd, ikey)
+                        FWRITE(hnd, HB_EOL())
+                        FCLOSE(hnd)
+                    next
                 next
             next
         next
