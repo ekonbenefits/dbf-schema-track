@@ -31,11 +31,15 @@ PROCEDURE MAIN(...)
       AAdd(dirs, "")
     end if
 
+    CreateStructDirIfMissing()
+
+    priorFiles := DIRECTORY(schemaDir)
+    
+
     for each dir in dirs
         for each prefix in prefixes
             look := dir + prefix + "*.DBF"
             ? "Prefix: ", look
-            CreateStructDirIfMissing()
             files := DIRECTORY(look)
             for each file in files
            
