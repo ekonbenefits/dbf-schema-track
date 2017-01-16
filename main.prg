@@ -1,10 +1,11 @@
 
 #define K_DIR_ARG    "-dir="
+#define K_OUT_ARG    "-out="
 
 PROCEDURE CreateStructDirIfMissing()
-    path := "struct"
+    path := K_SCHEMA_DIR
     IF(!FILE(path))
-        MakeDir("struct")
+        MakeDir(K_SCHEMA_DIR)
     ENDIF
 
 PROCEDURE MAIN(...)
@@ -12,12 +13,15 @@ PROCEDURE MAIN(...)
     LOCAL dirs := {}
     LOCAL prefixes := {}
     LOCAL indexes := {".NT*",".ND*", ".CD*",".MD*"}
+    LOCAL schemaDir := "schema"
     LOCAL tmp, dir, prefix, file, ifile, fld, entry, suffix
 
     FOR EACH tmp IN args
         DO CASE
         CASE Lower(Left(tmp, Len(K_DIR_ARG))) == K_DIR_ARG
             AAdd(dirs, SubStr(tmp,Len(K_DIR_ARG) + 1))
+        CASE Lower(Left(tmp, Len(K_OUT_ARG))) == K_OUT_ARG
+            schemaDir := SubStr(tmp,Len(K_OUT_ARG) + 1)
         OTHERWISE
             AAdd(prefixes, tmp)
         ENDCASE
@@ -43,7 +47,7 @@ PROCEDURE MAIN(...)
                 USE (db) READONLY
 
                 afields := DBSTRUCT()
-                hnd := FCREATE("schema"+ HB_PS() + fn + ".txt")
+                hnd := FCREATE(K_SCHEMA_DIR+ HB_PS() + fn + ".txt")
                 for each fld in afields
                     FWRITE(hnd, fld[1])
                     FWRITE(hnd, CHR(9))
@@ -65,7 +69,7 @@ PROCEDURE MAIN(...)
                         ? "Index:", idx
                         USE (db) READONLY INDEX (idx)
                         ikey := INDEXKEY()
-                        hnd := FCREATE("schema" + HB_PS() + ifn + ".txt")
+                        hnd := FCREATE(K_SCHEMA_DIR + HB_PS() + ifn + ".txt")
                         FWRITE(hnd, ikey)
                         FWRITE(hnd, HB_EOL())
                         FCLOSE(hnd)
