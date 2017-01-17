@@ -1,3 +1,7 @@
+#additional libraries
+
+-lhbmisc
+
 #file to compile
 -obin/print-struct.exe
 main.prg

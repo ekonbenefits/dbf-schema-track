@@ -1,6 +1,7 @@
 
-#define K_DIR_ARG    "-dir="
-#define K_OUT_ARG    "-out="
+#define K_DIR_ARG    "--dir="
+#define K_OUT_ARG    "--out="
+#define K_VERBOSE_ARG    "--verbose"
 
 PROCEDURE CreateStructDirIfMissing(schemaDir)
     path := schemaDir
@@ -14,7 +15,11 @@ PROCEDURE MAIN(...)
     LOCAL prefixes := {}
     LOCAL indexes := {".NT*",".ND*", ".CD*",".MD*"}
     LOCAL schemaDir := "schema"
-    LOCAL tmp, dir, prefix, file, ifile, fld, entry, suffix
+    LOCAL mapOfHashes := hb_Hash()
+    local verbose := .F.
+    LOCAL tmp, dir, prefix, file, ifile, fld, entry, suffix, pfile, key
+
+    hb_hSetAutoAdd(mapOfHashes, .T.)
 
     FOR EACH tmp IN args
         DO CASE
@@ -22,6 +27,8 @@ PROCEDURE MAIN(...)
             AAdd(dirs, SubStr(tmp,Len(K_DIR_ARG) + 1))
         CASE Lower(Left(tmp, Len(K_OUT_ARG))) == K_OUT_ARG
             schemaDir := SubStr(tmp,Len(K_OUT_ARG) + 1)
+        CASE Lower(Left(tmp, Len(K_VERBOSE_ARG))) == K_VERBOSE_ARG
+            verbose := .T.
         OTHERWISE
             AAdd(prefixes, tmp)
         ENDCASE
@@ -33,21 +40,35 @@ PROCEDURE MAIN(...)
 
     CreateStructDirIfMissing(schemaDir)
 
-    priorFiles := DIRECTORY(schemaDir)
-    
+    priorFiles := DIRECTORY(schemaDir + HB_PS())
+    for each pfile in priorFiles
+        fileData := ""
+        filePath := schemaDir + HB_PS() + pFile[1]
+        HB_FUse(filePath)
+            DO WHILE !HB_FEOF()
+                fileData += HB_FReadAndSkip()
+            ENDDO
+        HB_FUse()
+        fileSha := HB_StrToHex(hb_sha256(fileData))
+        mapOfHashes[filePath] := {fileSha, ""}
+
+    next
 
     for each dir in dirs
         for each prefix in prefixes
             look := dir + prefix + "*.DBF"
-            ? "Prefix: ", look
+            if verbose
+                ? "Prefix: ", look
+            endif
             files := DIRECTORY(look)
             for each file in files
            
                 fn := file [1]
                 db := dir + fn
                 missingExt := LEFT(fn, len(fn) -4)
-        
+                if verbose
                 ? "DB:", db
+                endif
                 USE (db) READONLY
 
                 afields := DBSTRUCT()
@@ -70,7 +91,9 @@ PROCEDURE MAIN(...)
                     for each ifile in ifiles
                         ifn :=  ifile[1]
                         idx := dir + ifn
-                        ? "Index:", idx
+                        if verbose
+                            ? "Index:", idx
+                        endif
                         USE (db) READONLY INDEX (idx)
                         ikey := INDEXKEY()
                         hnd := FCREATE(schemaDir + HB_PS() + ifn + ".txt")
@@ -83,10 +106,37 @@ PROCEDURE MAIN(...)
         next
     next
 
-  
+    priorFiles := DIRECTORY(schemaDir + HB_PS())
+    for each pfile in priorFiles
+        fileData := ""
+        filePath := schemaDir + HB_PS() + pFile[1]
+        HB_FUse(filePath)
+            DO WHILE !HB_FEOF()
+                fileData += HB_FReadAndSkip()
+            ENDDO
+        HB_FUse()
+        fileSha := HB_StrToHex(hb_sha256(fileData))
+        if !hb_hHaskey(mapOfHashes, filePath)
+            mapOfHashes[filePath] := {"", fileSha}
+        else
+            priorSha := mapOfHashes[filePath][1]
+            mapOfHashes[filePath] := {priorSha, fileSha}
+        endif 
 
-    if .F. 
-        ERRORLEVEL(25)
-    end if
+    next
+
+    test := .T.
+    for each key in hb_hKeys(mapOfHashes)
+       if mapOfHashes[key][1] <> mapOfHashes[key][2] 
+            test := .F.
+            ? key, " schema has changed."
+       endif
+    next
+
+    if !test 
+         ? "Please recommit"
+         ERRORLEVEL(25)
+    ENDIF
+ 
     quit
 
