@@ -2,10 +2,10 @@
 #define K_DIR_ARG    "-dir="
 #define K_OUT_ARG    "-out="
 
-PROCEDURE CreateStructDirIfMissing()
-    path := K_SCHEMA_DIR
+PROCEDURE CreateStructDirIfMissing(schemaDir)
+    path := schemaDir
     IF(!FILE(path))
-        MakeDir(K_SCHEMA_DIR)
+        MakeDir(schemaDir)
     ENDIF
 
 PROCEDURE MAIN(...)
@@ -31,7 +31,7 @@ PROCEDURE MAIN(...)
       AAdd(dirs, "")
     end if
 
-    CreateStructDirIfMissing()
+    CreateStructDirIfMissing(schemaDir)
 
     priorFiles := DIRECTORY(schemaDir)
     
@@ -51,7 +51,7 @@ PROCEDURE MAIN(...)
                 USE (db) READONLY
 
                 afields := DBSTRUCT()
-                hnd := FCREATE(K_SCHEMA_DIR+ HB_PS() + fn + ".txt")
+                hnd := FCREATE(schemaDir+ HB_PS() + fn + ".txt")
                 for each fld in afields
                     FWRITE(hnd, fld[1])
                     FWRITE(hnd, CHR(9))
@@ -73,7 +73,7 @@ PROCEDURE MAIN(...)
                         ? "Index:", idx
                         USE (db) READONLY INDEX (idx)
                         ikey := INDEXKEY()
-                        hnd := FCREATE(K_SCHEMA_DIR + HB_PS() + ifn + ".txt")
+                        hnd := FCREATE(schemaDir + HB_PS() + ifn + ".txt")
                         FWRITE(hnd, ikey)
                         FWRITE(hnd, HB_EOL())
                         FCLOSE(hnd)
