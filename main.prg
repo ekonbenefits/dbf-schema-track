@@ -2,12 +2,19 @@
 #define K_DIR_ARG    "--dir="
 #define K_OUT_ARG    "--out="
 #define K_VERBOSE_ARG    "--verbose"
+#define K_LIST_ARG    "--list="
 
 PROCEDURE CreateStructDirIfMissing(schemaDir)
     path := schemaDir
     IF(!FILE(path))
         MakeDir(schemaDir)
     ENDIF
+
+FUNCTION CheckArgFlag (arg, flag)
+    return Lower(Left(arg, Len(flag))) == flag
+
+FUNCTION ParseFlag (arg, flag)
+    return SubStr(arg, Len(flag) + 1)
 
 PROCEDURE MAIN(...)
     LOCAL args := HB_AParams()
@@ -23,12 +30,19 @@ PROCEDURE MAIN(...)
 
     FOR EACH tmp IN args
         DO CASE
-        CASE Lower(Left(tmp, Len(K_DIR_ARG))) == K_DIR_ARG
-            AAdd(dirs, SubStr(tmp,Len(K_DIR_ARG) + 1))
-        CASE Lower(Left(tmp, Len(K_OUT_ARG))) == K_OUT_ARG
-            schemaDir := SubStr(tmp,Len(K_OUT_ARG) + 1)
-        CASE Lower(Left(tmp, Len(K_VERBOSE_ARG))) == K_VERBOSE_ARG
+        CASE CheckArgFlag(tmp, K_DIR_ARG)
+            AAdd(dirs, ParseFlag(tmp,K_DIR_ARG))
+        CASE CheckArgFlag(tmp,K_OUT_ARG)
+            schemaDir := ParseFlag(tmp,K_OUT_ARG)
+        CASE CheckArgFlag(tmp,K_VERBOSE_ARG)
             verbose := .T.
+        CASE CheckArgFlag(tmp, K_LIST_ARG)
+            preFilePath := ParseFlag(tmp, K_LIST_ARG)
+            HB_FUse(preFilePath)
+            DO WHILE !HB_FEOF()
+                AAdd(prefixes, HB_FReadAndSkip())
+            ENDDO
+            HB_FUse()
         OTHERWISE
             AAdd(prefixes, tmp)
         ENDCASE
