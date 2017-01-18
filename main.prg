@@ -20,7 +20,7 @@ PROCEDURE MAIN(...)
     LOCAL args := HB_AParams()
     LOCAL dirs := {}
     LOCAL prefixes := {}
-    LOCAL indexes := {".NT*",".ND*", ".CD*",".MD*"}
+    LOCAL indexes := {{".NT*", "DBFNTX"}/*,{".ND*", "DBFNDX"}, {".CD*", "DBFCDX"},{".MD*","DBFMDX"}*/}
     LOCAL schemaDir := "schema"
     LOCAL mapOfHashes := hb_Hash()
     local verbose := .F.
@@ -109,7 +109,7 @@ PROCEDURE MAIN(...)
                 next
                 FCLOSE(hnd)
                 for each suffix in indexes
-                    look2 := dir + missingExt + suffix
+                    look2 := dir + missingExt + suffix[1]
                     ifiles := DIRECTORY(look2)
                     for each ifile in ifiles
                         fileCount += 1
@@ -118,7 +118,7 @@ PROCEDURE MAIN(...)
                         if verbose
                             OutStd("Index:", idx, HB_EOL())
                         endif
-                        USE (db) READONLY INDEX (idx)
+                        USE (db) READONLY INDEX (idx) VIA suffix[2]
                         ikey := INDEXKEY()
                         hnd := FCREATE(schemaDir + HB_PS() + ifn + ".txt")
                         FWRITE(hnd, ikey)
