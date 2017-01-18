@@ -36,11 +36,12 @@ PROCEDURE MAIN(...)
             schemaDir := ParseFlag(tmp,K_OUT_ARG)
         CASE CheckArgFlag(tmp,K_VERBOSE_ARG)
             verbose := .T.
+            OutStd("Verbose", HB_EOL())
         CASE CheckArgFlag(tmp, K_LIST_ARG)
             preFilePath := ParseFlag(tmp, K_LIST_ARG)
             HB_FUse(preFilePath)
             DO WHILE !HB_FEOF()
-                AAdd(prefixes, HB_FReadAndSkip())
+                AAdd(prefixes, ALLTRIM(HB_FReadAndSkip()))
             ENDDO
             HB_FUse()
         OTHERWISE
@@ -51,6 +52,11 @@ PROCEDURE MAIN(...)
     if EMPTY(dirs)
       AAdd(dirs, "")
     end if
+
+    if verbose
+        AEval(dirs, {|d| OutStd("Dir:" , d, HB_EOL())} )
+        AEval(prefixes, {|p| OutStd( "Prefix:" , p, HB_EOL())} )
+    endif
 
     CreateStructDirIfMissing(schemaDir)
 
@@ -67,21 +73,24 @@ PROCEDURE MAIN(...)
         mapOfHashes[filePath] := {fileSha, ""}
 
     next
-
+    fileCount := 0
     for each dir in dirs
+        if verbose
+                OutStd("Checking:", HB_PathNormalize( HB_PS() + CurDir() + HB_PS() + dir), HB_EOL())
+        endif
         for each prefix in prefixes
             look := dir + prefix + "*.DBF"
             if verbose
-                ? "Prefix: ", look
+                OutStd("Prefix: ", look, HB_EOL())
             endif
             files := DIRECTORY(look)
             for each file in files
-           
+                fileCount += 1
                 fn := file [1]
                 db := dir + fn
                 missingExt := LEFT(fn, len(fn) -4)
                 if verbose
-                ? "DB:", db
+                    OutStd("DB:", db, HB_EOL())
                 endif
                 USE (db) READONLY
 
@@ -103,10 +112,11 @@ PROCEDURE MAIN(...)
                     look2 := dir + missingExt + suffix
                     ifiles := DIRECTORY(look2)
                     for each ifile in ifiles
+                        fileCount += 1
                         ifn :=  ifile[1]
                         idx := dir + ifn
                         if verbose
-                            ? "Index:", idx
+                            OutStd("Index:", idx, HB_EOL())
                         endif
                         USE (db) READONLY INDEX (idx)
                         ikey := INDEXKEY()
@@ -143,13 +153,18 @@ PROCEDURE MAIN(...)
     for each key in hb_hKeys(mapOfHashes)
        if mapOfHashes[key][1] <> mapOfHashes[key][2] 
             test := .F.
-            ? key, " schema has changed."
+            OutErr(key, " schema has changed.", HB_EOL())
        endif
     next
 
     if !test 
-         ? "Please recommit"
+         OutErr("Please recommit", HB_EOL())
          ERRORLEVEL(25)
+    ENDIF
+
+    if fileCount == 0
+         OutErr("Didn't find any files to check schema.", HB_EOL())
+         ERRORLEVEL(24)
     ENDIF
  
     quit

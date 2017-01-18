@@ -3,5 +3,5 @@
 -lhbmisc
 
 #file to compile
--obin/print-struct.exe
+-obin/dbf-schema-track.exe
 main.prg
