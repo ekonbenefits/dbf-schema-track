@@ -79,7 +79,7 @@ PROCEDURE MAIN(...)
                 OutStd("Checking:", HB_PathNormalize( HB_PS() + CurDir() + HB_PS() + dir), HB_EOL())
         endif
         for each prefix in prefixes
-            look := dir + prefix + "*.DBF"
+            look := dir + prefix + ".DBF"
             if verbose
                 OutStd("Prefix: ", look, HB_EOL())
             endif
