@@ -83,11 +83,13 @@ PROCEDURE MAIN(...)
             if verbose
                 OutStd("Prefix: ", look, HB_EOL())
             endif
+            prefixDir = dir
+            HB_FNameSplit(look, @prefixDir)
             files := DIRECTORY(look)
             for each file in files
                 fileCount += 1
                 fn := file [1]
-                db := dir + fn
+                db := prefixDir + fn
                 missingExt := LEFT(fn, len(fn) -4)
                 if verbose
                     OutStd("DB:", db, HB_EOL())
@@ -109,12 +111,12 @@ PROCEDURE MAIN(...)
                 next
                 FCLOSE(hnd)
                 for each suffix in indexes
-                    look2 := dir + missingExt + suffix[1]
+                    look2 := prefixDir + missingExt + suffix[1]
                     ifiles := DIRECTORY(look2)
                     for each ifile in ifiles
                         fileCount += 1
                         ifn :=  ifile[1]
-                        idx := dir + ifn
+                        idx := prefixDir + ifn
                         if verbose
                             OutStd("Index:", idx, HB_EOL())
                         endif
