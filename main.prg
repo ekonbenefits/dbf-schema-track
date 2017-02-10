@@ -3,8 +3,9 @@
 #define K_OUT_ARG    "--out="
 #define K_VERBOSE_ARG    "--verbose"
 #define K_LIST_ARG    "--list="
+#define K_INGOREREAD_ARG    "--ignore-read-error"
 
-MEMVAR dirs,schemaDir,verbose,prefixes,indexes
+MEMVAR dirs,schemaDir,verbose,prefixes,indexes,ignoreReadError
 
 PROCEDURE CreateStructDirIfMissing(schemaDir)
     LOCAL path := schemaDir
@@ -26,6 +27,7 @@ PROCEDURE ParseArguments(args)
     PUBLIC verbose := .F.    
     PUBLIC prefixes := {}
     PUBLIC indexes := {{".NT*", "DBFNTX"}/*,{".ND*", "DBFNDX"}, {".CD*", "DBFCDX"},{".MD*","DBFMDX"}*/}
+    PUBLIC ignoreReadError := .F.
 
     FOR EACH tmp IN args
         DO CASE
@@ -36,6 +38,8 @@ PROCEDURE ParseArguments(args)
         CASE CheckArgFlag(tmp,K_VERBOSE_ARG)
             verbose := .T.
             OutStd("Verbose", HB_EOL())
+        CASE CheckArgFlag(tmp,K_INGOREREAD_ARG)
+            ignoreReadError := .T.
         CASE CheckArgFlag(tmp, K_LIST_ARG)
             preFilePath := ParseFlag(tmp, K_LIST_ARG)
             HB_FUse(preFilePath)
@@ -55,6 +59,7 @@ PROCEDURE ParseArguments(args)
     if verbose
         AEval(dirs, {|d| OutStd("Dir:" , d, HB_EOL())} )
         AEval(prefixes, {|p| OutStd( "Prefix:" , p, HB_EOL())} )
+        OutStd("Ignore Read errors:", ignoreReadError, HB_EOL())
     endif
     RETURN
 
@@ -148,6 +153,7 @@ PROCEDURE WriteOutFileSchema(fn, db)
 FUNCTION WriteOutSchema()
 
     LOCAL fileCount, look, file, dir, prefix, prefixDir, files, missingExt, db, fn
+    LOCAL readError := .F.
     fileCount := 0
     for each dir in dirs
         if verbose
@@ -166,18 +172,28 @@ FUNCTION WriteOutSchema()
               fn := file [1]
               db := prefixDir + fn
               missingExt := LEFT(fn, len(fn) -4)
+
+              BEGIN SEQUENCE
               WriteOutFileSchema(fn, db)
               WriteOutIndexSchema(prefixDir, missingExt, db)
+              RECOVER
+                 OutStd("Could Not Access: ", fn, HB_EOL())
+                 readError := .T. .AND. .NOT. ignoreReadError
+              END
             next
         next
     next
-    RETURN fileCount
+    IF fileCount == 0
+        OutErr("Didn't find any files to check schema.", HB_EOL())
+    end
+
+    RETURN .NOT. readError
 
 
 
 PROCEDURE MAIN(...)
     LOCAL args := HB_AParams()
-    LOCAL key, fileCount
+    LOCAL key, schemaParseOk
     LOCAL test
     LOCAL mapOfHashes
 
@@ -187,7 +203,7 @@ PROCEDURE MAIN(...)
 
     mapOfHashes := SetupMapOfHashes() 
     
-    fileCount := WriteOutSchema()
+    schemaParseOk := WriteOutSchema()
 
     UpdateMapOfHashes(mapOfHashes)
 
@@ -205,8 +221,7 @@ PROCEDURE MAIN(...)
          ERRORLEVEL(25)
     ENDIF
 
-    if fileCount == 0
-         OutErr("Didn't find any files to check schema.", HB_EOL())
+    if .NOT. schemaParseOk
          ERRORLEVEL(24)
     ENDIF
  
