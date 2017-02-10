@@ -2,6 +2,8 @@
 
 -lhbmisc
 
+-w3
+
 #file to compile
 -obin/dbf-schema-track.exe
 main.prg

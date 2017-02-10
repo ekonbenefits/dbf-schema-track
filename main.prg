@@ -4,8 +4,10 @@
 #define K_VERBOSE_ARG    "--verbose"
 #define K_LIST_ARG    "--list="
 
+MEMVAR dirs,schemaDir,verbose,prefixes,indexes
+
 PROCEDURE CreateStructDirIfMissing(schemaDir)
-    path := schemaDir
+    LOCAL path := schemaDir
     IF(!FILE(path))
         MakeDir(schemaDir)
     ENDIF
@@ -16,17 +18,14 @@ FUNCTION CheckArgFlag (arg, flag)
 FUNCTION ParseFlag (arg, flag)
     return SubStr(arg, Len(flag) + 1)
 
-PROCEDURE MAIN(...)
-    LOCAL args := HB_AParams()
-    LOCAL dirs := {}
-    LOCAL prefixes := {}
-    LOCAL indexes := {{".NT*", "DBFNTX"}/*,{".ND*", "DBFNDX"}, {".CD*", "DBFCDX"},{".MD*","DBFMDX"}*/}
-    LOCAL schemaDir := "schema"
-    LOCAL mapOfHashes := hb_Hash()
-    local verbose := .F.
-    LOCAL tmp, dir, prefix, file, ifile, fld, entry, suffix, pfile, key
+PROCEDURE ParseArguments(args)
+    local tmp, preFilePath
 
-    hb_hSetAutoAdd(mapOfHashes, .T.)
+    PUBLIC dirs := {}
+    PUBLIC schemaDir := "schema"
+    PUBLIC verbose := .F.    
+    PUBLIC prefixes := {}
+    PUBLIC indexes := {{".NT*", "DBFNTX"}/*,{".ND*", "DBFNDX"}, {".CD*", "DBFCDX"},{".MD*","DBFMDX"}*/}
 
     FOR EACH tmp IN args
         DO CASE
@@ -57,8 +56,13 @@ PROCEDURE MAIN(...)
         AEval(dirs, {|d| OutStd("Dir:" , d, HB_EOL())} )
         AEval(prefixes, {|p| OutStd( "Prefix:" , p, HB_EOL())} )
     endif
+    RETURN
 
-    CreateStructDirIfMissing(schemaDir)
+FUNCTION SetupMapOfHashes()
+    LOCAL priorFiles, fileData, filePath, fileSha, pfile
+    LOCAL mapOfHashes := hb_Hash()
+
+    hb_hSetAutoAdd(mapOfHashes, .T.)
 
     priorFiles := DIRECTORY(schemaDir + HB_PS())
     for each pfile in priorFiles
@@ -71,67 +75,11 @@ PROCEDURE MAIN(...)
         HB_FUse()
         fileSha := HB_StrToHex(hb_sha256(fileData))
         mapOfHashes[filePath] := {fileSha, ""}
-
     next
-    fileCount := 0
-    for each dir in dirs
-        if verbose
-                OutStd("Checking:", HB_PathNormalize( HB_PS() + CurDir() + HB_PS() + dir), HB_EOL())
-        endif
-        for each prefix in prefixes
-            look := dir + prefix + ".DBF"
-            if verbose
-                OutStd("Prefix: ", look, HB_EOL())
-            endif
-            prefixDir = dir
-            HB_FNameSplit(look, @prefixDir)
-            files := DIRECTORY(look)
-            for each file in files
-                fileCount += 1
-                fn := file [1]
-                db := prefixDir + fn
-                missingExt := LEFT(fn, len(fn) -4)
-                if verbose
-                    OutStd("DB:", db, HB_EOL())
-                endif
-                USE (db) READONLY
+    return mapOfHashes
 
-                afields := DBSTRUCT()
-                hnd := FCREATE(schemaDir+ HB_PS() + fn + ".txt")
-                for each fld in afields
-                    FWRITE(hnd, fld[1])
-                    FWRITE(hnd, CHR(9))
-                    FWRITE(hnd, fld[2])
-                    FWRITE(hnd, CHR(9))
-                    FWRITE(hnd,STR(fld[3]))
-                    FWRITE(hnd, CHR(9))
-                    FWRITE(hnd,STR(fld[4]))
-                    FWRITE(hnd, CHR(9))
-                    FWRITE(hnd, HB_EOL())
-                next
-                FCLOSE(hnd)
-                for each suffix in indexes
-                    look2 := prefixDir + missingExt + suffix[1]
-                    ifiles := DIRECTORY(look2)
-                    for each ifile in ifiles
-                        fileCount += 1
-                        ifn :=  ifile[1]
-                        idx := prefixDir + ifn
-                        if verbose
-                            OutStd("Index:", idx, HB_EOL())
-                        endif
-                        USE (db) READONLY INDEX (idx) VIA suffix[2]
-                        ikey := INDEXKEY()
-                        hnd := FCREATE(schemaDir + HB_PS() + ifn + ".txt")
-                        FWRITE(hnd, ikey)
-                        FWRITE(hnd, HB_EOL())
-                        FCLOSE(hnd)
-                    next
-                next
-            next
-        next
-    next
-
+PROCEDURE UpdateMapOfHashes(mapOfHashes)
+    LOCAL priorFiles, fileData, filePath, fileSha, pfile, priorSha
     priorFiles := DIRECTORY(schemaDir + HB_PS())
     for each pfile in priorFiles
         fileData := ""
@@ -151,6 +99,99 @@ PROCEDURE MAIN(...)
 
     next
 
+    RETURN
+
+PROCEDURE WriteOutIndexSchema(prefixDir, missingExt, db)
+    LOCAL suffix, look, file, fn, files, ikey, idx, hnd
+    for each suffix in indexes
+        look := prefixDir + missingExt + suffix[1]
+        files := DIRECTORY(look)
+        for each file in files
+            fn :=  file[1]
+            idx := prefixDir + fn
+            if verbose
+                OutStd("Index:", idx, HB_EOL())
+            endif
+            USE (db) READONLY INDEX (idx) VIA suffix[2]
+            ikey := INDEXKEY()
+            hnd := FCREATE(schemaDir + HB_PS() + fn + ".txt")
+            FWRITE(hnd, ikey)
+            FWRITE(hnd, HB_EOL())
+            FCLOSE(hnd)
+        next
+    next
+    RETURN
+
+PROCEDURE WriteOutFileSchema(fn, db)
+    local hnd, fld, afields
+    if verbose
+        OutStd("DB:", db, HB_EOL())
+    endif
+    USE (db) READONLY
+
+    afields := DBSTRUCT()
+    hnd := FCREATE(schemaDir+ HB_PS() + fn + ".txt")
+    for each fld in afields
+        FWRITE(hnd, fld[1])
+        FWRITE(hnd, CHR(9))
+        FWRITE(hnd, fld[2])
+        FWRITE(hnd, CHR(9))
+        FWRITE(hnd,STR(fld[3]))
+        FWRITE(hnd, CHR(9))
+        FWRITE(hnd,STR(fld[4]))
+        FWRITE(hnd, CHR(9))
+        FWRITE(hnd, HB_EOL())
+    next
+    FCLOSE(hnd)
+    RETURN
+
+FUNCTION WriteOutSchema()
+
+    LOCAL fileCount, look, file, dir, prefix, prefixDir, files, missingExt, db, fn
+    fileCount := 0
+    for each dir in dirs
+        if verbose
+                OutStd("Checking:", HB_PathNormalize( HB_PS() + CurDir() + HB_PS() + dir), HB_EOL())
+        endif
+        for each prefix in prefixes
+            look := dir + prefix + ".DBF"
+            if verbose
+                OutStd("Prefix: ", look, HB_EOL())
+            endif
+            prefixDir = dir
+            HB_FNameSplit(look, @prefixDir)
+            files := DIRECTORY(look)
+            for each file in files
+              fileCount += 1
+              fn := file [1]
+              db := prefixDir + fn
+              missingExt := LEFT(fn, len(fn) -4)
+              WriteOutFileSchema(fn, db)
+              WriteOutIndexSchema(prefixDir, missingExt, db)
+            next
+        next
+    next
+    RETURN fileCount
+
+
+
+PROCEDURE MAIN(...)
+    LOCAL args := HB_AParams()
+    LOCAL key, fileCount
+    LOCAL test
+    LOCAL mapOfHashes
+
+    ParseArguments(args)
+
+    CreateStructDirIfMissing(schemaDir)
+
+    mapOfHashes := SetupMapOfHashes() 
+    
+    fileCount := WriteOutSchema()
+
+    UpdateMapOfHashes(mapOfHashes)
+
+  
     test := .T.
     for each key in hb_hKeys(mapOfHashes)
        if mapOfHashes[key][1] <> mapOfHashes[key][2] 
@@ -170,4 +211,3 @@ PROCEDURE MAIN(...)
     ENDIF
  
     quit
-
