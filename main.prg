@@ -221,7 +221,7 @@ PROCEDURE MAIN(...)
          ERRORLEVEL(25)
     ENDIF
 
-    if .NOT. schemaParseOk
+    if !schemaParseOk
          ERRORLEVEL(24)
     ENDIF
  
