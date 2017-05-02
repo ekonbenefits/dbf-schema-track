@@ -133,7 +133,9 @@ PROCEDURE WriteOutFileSchema(fn, db)
         OutStd("DB:", db, HB_EOL())
     endif
     USE (db) READONLY
-
+    IF NETERR()
+        Break "DBF Open Error"
+    ENDIF
     afields := DBSTRUCT()
     hnd := FCREATE(schemaDir+ HB_PS() + fn + ".txt")
     for each fld in afields
@@ -188,8 +190,6 @@ FUNCTION WriteOutSchema()
     end
 
     RETURN .NOT. readError
-
-
 
 PROCEDURE MAIN(...)
     LOCAL args := HB_AParams()
