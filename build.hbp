@@ -5,5 +5,5 @@
 -w3
 
 #file to compile
--obin/dbf-schema-track.exe
+-obin/dbf-schema-track
 main.prg
