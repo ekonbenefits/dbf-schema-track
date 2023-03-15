@@ -2,10 +2,11 @@
 #define K_DIR_ARG    "--dir="
 #define K_OUT_ARG    "--out="
 #define K_VERBOSE_ARG    "--verbose"
+#define K_JSON_ARG    "--json"
 #define K_LIST_ARG    "--list="
 #define K_INGOREREAD_ARG    "--ignore-read-error"
 
-MEMVAR dirs,schemaDir,verbose,prefixes,indexes,ignoreReadError
+MEMVAR dirs,schemaDir,verbose,prefixes,indexes,ignoreReadError,formatJson
 
 PROCEDURE CreateStructDirIfMissing(schemaDir)
     LOCAL path := schemaDir
@@ -28,6 +29,7 @@ PROCEDURE ParseArguments(args)
     PUBLIC prefixes := {}
     PUBLIC indexes := {{".NT*", "DBFNTX"}/*,{".ND*", "DBFNDX"}, {".CD*", "DBFCDX"},{".MD*","DBFMDX"}*/}
     PUBLIC ignoreReadError := .F.
+    PUBLIC formatJson := .F.
 
     FOR EACH tmp IN args
         DO CASE
@@ -40,6 +42,8 @@ PROCEDURE ParseArguments(args)
             OutStd("Verbose", HB_EOL())
         CASE CheckArgFlag(tmp,K_INGOREREAD_ARG)
             ignoreReadError := .T.
+        CASE CheckArgFlag(tmp,K_JSON_ARG)
+            formatJson := .T.
         CASE CheckArgFlag(tmp, K_LIST_ARG)
             preFilePath := ParseFlag(tmp, K_LIST_ARG)
             HB_FUse(preFilePath)
@@ -53,7 +57,7 @@ PROCEDURE ParseArguments(args)
     NEXT
 
     if EMPTY(dirs)
-      AAdd(dirs, "")
+        AAdd(dirs, "")
     end if
 
     if verbose
@@ -107,7 +111,7 @@ PROCEDURE UpdateMapOfHashes(mapOfHashes)
     RETURN
 
 PROCEDURE WriteOutIndexSchema(prefixDir, missingExt, db)
-    LOCAL suffix, look, file, fn, files, ikey, idx, hnd
+    LOCAL suffix, look, file, fn, files, ikey, idx, hnd, ext
     for each suffix in indexes
         look := prefixDir + missingExt + suffix[1]
         files := DIRECTORY(look)
@@ -119,16 +123,21 @@ PROCEDURE WriteOutIndexSchema(prefixDir, missingExt, db)
             endif
             USE (db) READONLY INDEX (idx) VIA suffix[2]
             ikey := INDEXKEY()
-            hnd := FCREATE(schemaDir + HB_PS() + fn + ".txt")
-            FWRITE(hnd, ikey)
-            FWRITE(hnd, HB_EOL())
+            ext := IF(formatJson, ".json", ".txt")
+            hnd := FCREATE(schemaDir + HB_PS() + fn + ext)
+            if formatJson
+                FWRITE(hnd, hb_jsonEncode({"key" => ikey}, .T.))
+            else
+                FWRITE(hnd, ikey)
+                FWRITE(hnd, HB_EOL())
+            endif
             FCLOSE(hnd)
         next
     next
     RETURN
 
 PROCEDURE WriteOutFileSchema(fn, db)
-    local hnd, fld, afields
+    local hnd, fld, afields, ext
     if verbose
         OutStd("DB:", db, HB_EOL())
     endif
@@ -137,18 +146,23 @@ PROCEDURE WriteOutFileSchema(fn, db)
         Break "DBF Open Error"
     ENDIF
     afields := DBSTRUCT()
-    hnd := FCREATE(schemaDir+ HB_PS() + fn + ".txt")
-    for each fld in afields
-        FWRITE(hnd, fld[1])
-        FWRITE(hnd, CHR(9))
-        FWRITE(hnd, fld[2])
-        FWRITE(hnd, CHR(9))
-        FWRITE(hnd,STR(fld[3]))
-        FWRITE(hnd, CHR(9))
-        FWRITE(hnd,STR(fld[4]))
-        FWRITE(hnd, CHR(9))
-        FWRITE(hnd, HB_EOL())
-    next
+    ext := IF(formatJson, ".json", ".txt")
+    hnd := FCREATE(schemaDir+ HB_PS() + fn + ext)
+    if formatJson
+        FWRITE(hnd, hb_jsonEncode(afields, .T.))
+    else
+        for each fld in afields
+            FWRITE(hnd, fld[1])
+            FWRITE(hnd, CHR(9))
+            FWRITE(hnd, fld[2])
+            FWRITE(hnd, CHR(9))
+            FWRITE(hnd,STR(fld[3]))
+            FWRITE(hnd, CHR(9))
+            FWRITE(hnd,STR(fld[4]))
+            FWRITE(hnd, CHR(9))
+            FWRITE(hnd, HB_EOL())
+        next
+    ENDIF
     FCLOSE(hnd)
     RETURN
 
