@@ -126,7 +126,7 @@ PROCEDURE WriteOutIndexSchema(prefixDir, missingExt, db)
             ext := IF(formatJson, ".json", ".txt")
             hnd := FCREATE(schemaDir + HB_PS() + fn + ext)
             if formatJson
-                FWRITE(hnd, hb_jsonEncode({"key" => ikey}))
+                FWRITE(hnd, hb_jsonEncode({"key" => ikey}, .T.))
             else
                 FWRITE(hnd, ikey)
                 FWRITE(hnd, HB_EOL())
@@ -149,7 +149,7 @@ PROCEDURE WriteOutFileSchema(fn, db)
     ext := IF(formatJson, ".json", ".txt")
     hnd := FCREATE(schemaDir+ HB_PS() + fn + ext)
     if formatJson
-        FWRITE(hnd, hb_jsonEncode(afields))
+        FWRITE(hnd, hb_jsonEncode(afields, .T.))
     else
         for each fld in afields
             FWRITE(hnd, fld[1])
