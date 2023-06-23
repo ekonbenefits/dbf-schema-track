@@ -4,6 +4,7 @@
 
 -w3
 
+-strip-
 #file to compile
 -obin/dbf-schema-track
 main.prg

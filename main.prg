@@ -111,28 +111,34 @@ PROCEDURE UpdateMapOfHashes(mapOfHashes)
     RETURN
 
 PROCEDURE WriteOutIndexSchema(prefixDir, missingExt, db)
-    LOCAL suffix, look, file, fn, files, ikey, idx, hnd, ext
+    LOCAL suffix, look,look1, look2, file, fn, files, ikey, idx, hnd, ext, dummy
+    dummy := @DESCEND()
+    dummy := IIF(.T., "","")
+    dummy := @DTOS()
     for each suffix in indexes
-        look := prefixDir + missingExt + suffix[1]
-        files := DIRECTORY(look)
-        for each file in files
-            fn :=  file[1]
-            idx := prefixDir + fn
-            if verbose
-                OutStd("Index:", idx, HB_EOL())
-            endif
-            USE (db) READONLY INDEX (idx) VIA suffix[2]
-            ikey := INDEXKEY()
-            ext := IF(formatJson, ".json", ".txt")
-            hnd := FCREATE(schemaDir + HB_PS() + fn + ext)
-            if formatJson
-                FWRITE(hnd, hb_jsonEncode({"key" => ikey}, .T.))
-            else
-                FWRITE(hnd, ikey)
-                FWRITE(hnd, HB_EOL())
-            endif
-            FCLOSE(hnd)
-        next
+        look1 := prefixDir + missingExt + suffix[1]
+        look2 := prefixDir + missingExt + "@*" + suffix[1]
+        for each look in {look1, look2}
+            files := DIRECTORY(look)
+            for each file in files
+                fn :=  file[1]
+                idx := prefixDir + fn
+                if verbose
+                    OutStd("Index:", idx, HB_EOL())
+                endif
+                USE (db) READONLY INDEX (idx) VIA suffix[2]
+                ikey := INDEXKEY()
+                ext := IF(formatJson, ".json", ".txt")
+                hnd := FCREATE(schemaDir + HB_PS() + fn + ext)
+                if formatJson
+                    FWRITE(hnd, hb_jsonEncode({"key" => ikey}, .T.))
+                else
+                    FWRITE(hnd, ikey)
+                    FWRITE(hnd, HB_EOL())
+                endif
+                FCLOSE(hnd)
+            next
+        NEXT
     next
     RETURN
 
